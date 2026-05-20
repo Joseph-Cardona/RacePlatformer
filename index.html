@@ -24,6 +24,8 @@
     let keys = {};
     let uiElement;
     let cameraX = 0;
+    let deaths = 0;
+
     const startX = 80;
     const startY = 350;
 
@@ -62,6 +64,7 @@
     function startGameLevel() {
       gameRunning = true;
       timer = 0;
+      deaths = 0;
       velocityX = velocityY = 0;
       cameraX = 0;
       platforms = [];
@@ -100,7 +103,8 @@
     }
 
     function die() {
-      alert("💀 You fell off the level!");
+      deaths++;
+      // Instant respawn
       player.x = startX;
       player.y = startY;
       velocityX = 0;
@@ -112,7 +116,7 @@
       if (!gameRunning || !player) return;
 
       timer += 1/60;
-      uiElement.textContent = `Time: ${timer.toFixed(1)}s`;
+      uiElement.textContent = `Time: ${timer.toFixed(1)}s | Deaths: ${deaths}`;
 
       const MOVE_SPEED = 11.5;
       const ACCEL = 2.0;
@@ -122,7 +126,7 @@
       const GRAVITY = 1.25;
       const TERMINAL_VELOCITY = 22;
 
-      // Horizontal movement
+      // Horizontal
       let targetSpeed = 0;
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetSpeed = -MOVE_SPEED;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) targetSpeed = MOVE_SPEED;
@@ -141,7 +145,7 @@
         }
       }
 
-      // Vertical movement
+      // Vertical
       velocityY += GRAVITY;
       if (velocityY > TERMINAL_VELOCITY) velocityY = TERMINAL_VELOCITY;
       player.y += velocityY;
@@ -163,7 +167,7 @@
         }
       }
 
-      // === FALL DEATH (Bottom of screen) ===
+      // Fall death
       if (player.y > 650) {
         die();
         return;
@@ -187,7 +191,7 @@
       // Win
       if (player.x > 2520) {
         gameRunning = false;
-        alert(`🎉 Level Complete!\nTime: ${timer.toFixed(1)} seconds`);
+        alert(`🎉 Level Complete!\nTime: ${timer.toFixed(1)} seconds\nDeaths: ${deaths}`);
         showStartScreen();
       }
     }
