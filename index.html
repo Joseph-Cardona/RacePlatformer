@@ -25,10 +25,10 @@
     let uiElement;
     let cameraX = 0;
     let deaths = 0;
-    let isJumping = false; // For variable jump height
+    let isJumping = false;
 
     const startX = 80;
-    const startY = 350;
+    const startY = 400;
 
     async function init() {
       await app.init({
@@ -73,7 +73,7 @@
 
       app.stage.removeChildren();
 
-      const bg = new PIXI.Graphics().rect(0, 0, 3000, app.screen.height).fill(0x112244);
+      const bg = new PIXI.Graphics().rect(0, 0, 3200, app.screen.height).fill(0x112244);
       app.stage.addChild(bg);
 
       function addPlatform(x, y, w, h) {
@@ -83,13 +83,18 @@
         platforms.push(p);
       }
 
-      addPlatform(100, 450, 300, 20);
-      addPlatform(500, 350, 200, 20);
-      addPlatform(850, 480, 250, 20);
-      addPlatform(1250, 280, 180, 20);
-      addPlatform(1600, 420, 220, 20);
-      addPlatform(1950, 220, 150, 20);
-      addPlatform(2250, 380, 350, 20);
+      // === NEW IMPROVED LEVEL ===
+      addPlatform(100, 450, 280, 20);   // Start
+      addPlatform(450, 380, 180, 20);
+      addPlatform(700, 280, 150, 20);
+      addPlatform(950, 420, 200, 20);
+      addPlatform(1250, 220, 160, 20);  // Higher jump
+      addPlatform(1500, 380, 180, 20);
+      addPlatform(1750, 180, 140, 20);  // Big gap + high jump
+      addPlatform(2000, 320, 220, 20);
+      addPlatform(2300, 250, 150, 20);
+      addPlatform(2550, 380, 180, 20);
+      addPlatform(2800, 300, 250, 20);  // Final stretch
 
       player = new PIXI.Graphics();
       player.roundRect(0, 0, 40, 40, 8);
@@ -99,8 +104,9 @@
       player.y = startY;
       app.stage.addChild(player);
 
-      goal = new PIXI.Graphics().rect(0, 0, 30, 120).fill(0x00ff88);
-      goal.x = 2550; goal.y = 280;
+      goal = new PIXI.Graphics().rect(0, 0, 40, 140).fill(0x00ff88);
+      goal.x = 2950;
+      goal.y = 200;
       app.stage.addChild(goal);
     }
 
@@ -127,9 +133,9 @@
       const JUMP_FORCE = -19.5;
       const GRAVITY = 1.25;
       const TERMINAL_VELOCITY = 22;
-      const JUMP_CUT = 0.55; // How much to cut the jump when releasing early
+      const JUMP_CUT = 0.55;
 
-      // Horizontal movement
+      // Horizontal
       let targetSpeed = 0;
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetSpeed = -MOVE_SPEED;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) targetSpeed = MOVE_SPEED;
@@ -148,12 +154,12 @@
         }
       }
 
-      // Vertical movement
+      // Vertical
       velocityY += GRAVITY;
       if (velocityY > TERMINAL_VELOCITY) velocityY = TERMINAL_VELOCITY;
       player.y += velocityY;
 
-      // Variable Jump Height - Cut upward velocity when jump button is released
+      // Variable jump cut
       if (!keys[' '] && !keys['ArrowUp'] && !keys['w'] && !keys['W'] && velocityY < 0) {
         velocityY *= JUMP_CUT;
       }
@@ -176,30 +182,27 @@
         }
       }
 
-      // Fall death
       if (player.y > 650) {
         die();
         return;
       }
 
-      // Jump (only when on ground)
+      // Jump
       if ((keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) && isOnGround) {
         velocityY = JUMP_FORCE;
         isOnGround = false;
         isJumping = true;
       }
 
-      // Anti-jitter
       player.x = Math.round(player.x);
       player.y = Math.round(player.y);
 
-      // Smooth camera
       const targetCam = -player.x + app.screen.width / 3;
       cameraX = cameraX * 0.85 + targetCam * 0.15;
-      app.stage.x = Math.round(Math.max(Math.min(cameraX, 0), -2400));
+      app.stage.x = Math.round(Math.max(Math.min(cameraX, 0), -2800));
 
       // Win
-      if (player.x > 2520) {
+      if (player.x > 2920) {
         gameRunning = false;
         alert(`🎉 Level Complete!\nTime: ${timer.toFixed(1)} seconds\nDeaths: ${deaths}`);
         showStartScreen();
