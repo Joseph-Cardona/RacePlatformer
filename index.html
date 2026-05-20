@@ -101,7 +101,6 @@
 
     function die() {
       alert("💀 You fell off the level!");
-      // Respawn at start
       player.x = startX;
       player.y = startY;
       velocityX = 0;
@@ -123,7 +122,7 @@
       const GRAVITY = 1.25;
       const TERMINAL_VELOCITY = 22;
 
-      // Horizontal
+      // Horizontal movement
       let targetSpeed = 0;
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetSpeed = -MOVE_SPEED;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) targetSpeed = MOVE_SPEED;
@@ -142,7 +141,7 @@
         }
       }
 
-      // Vertical
+      // Vertical movement
       velocityY += GRAVITY;
       if (velocityY > TERMINAL_VELOCITY) velocityY = TERMINAL_VELOCITY;
       player.y += velocityY;
@@ -164,17 +163,10 @@
         }
       }
 
-      // Fall death
+      // === FALL DEATH (Bottom of screen) ===
       if (player.y > 650) {
         die();
         return;
-      }
-
-      // Ground
-      if (player.y > 550) {
-        player.y = 550;
-        velocityY = 0;
-        isOnGround = true;
       }
 
       // Jump
