@@ -96,8 +96,11 @@
       addPlatform(1950, 220, 150, 20);
       addPlatform(2250, 380, 350, 20);
 
-      // Player
-      player = new PIXI.Graphics().rect(0, 0, 32, 48).fill(0xff2222);
+      // Player - Black rounded cube
+      player = new PIXI.Graphics();
+      player.roundRect(0, 0, 40, 40, 8);   // width, height, corner radius
+      player.fill(0x111111);
+      player.stroke({ width: 4, color: 0x222222 });
       player.x = 80;
       player.y = 350;
       app.stage.addChild(player);
@@ -116,11 +119,11 @@
       uiElement.textContent = `Time: ${timer.toFixed(1)}s`;
 
       const GRAVITY = 1.15;
-      const MOVE_SPEED = 9.2;
-      const ACCEL = 1.9;
+      const MOVE_SPEED = 11.5;           // ← Faster run
+      const ACCEL = 2.0;
       const FRICTION = 0.78;
       const AIR_FRICTION = 0.94;
-      const JUMP_FORCE = -21.5;        // ← Higher jump
+      const JUMP_FORCE = -19.5;          // ← Slightly lower jump
 
       // Horizontal movement
       let targetSpeed = 0;
@@ -141,11 +144,11 @@
       for (let p of platforms) {
         if (
           player.x < p.x + p.width &&
-          player.x + 32 > p.x &&
-          player.y + 48 > p.y &&
-          player.y + 48 - velocityY <= p.y
+          player.x + 40 > p.x &&
+          player.y + 40 > p.y &&
+          player.y + 40 - velocityY <= p.y
         ) {
-          player.y = p.y - 48;
+          player.y = p.y - 40;
           velocityY = 0;
           isOnGround = true;
         }
@@ -158,17 +161,17 @@
         isOnGround = true;
       }
 
-      // Jump - Support Space, Up Arrow, and W
+      // Jump (Space, Up, W)
       if ((keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) && isOnGround) {
         velocityY = JUMP_FORCE;
         isOnGround = false;
       }
 
-      // Camera follow
+      // Camera
       const targetCam = -player.x + app.screen.width / 3;
       app.stage.x = Math.max(Math.min(targetCam, 0), -2400);
 
-      // Win condition
+      // Win
       if (player.x > 2520) {
         gameRunning = false;
         alert(`🎉 Level Complete!\nTime: ${timer.toFixed(1)} seconds`);
