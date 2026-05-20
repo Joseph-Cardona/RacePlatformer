@@ -6,14 +6,28 @@
   <title>Race Platformer</title>
   <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.5.0/dist/pixi.min.js"></script>
   <style>
-    body { margin:0; background:#000; overflow:hidden; }
+    body { margin:0; background:#000; overflow:hidden; font-family: Arial, sans-serif; }
     canvas { display:block; }
+    #ui {
+      position: absolute; top: 10px; left: 10px; color: white; z-index: 100;
+      font-size: 20px; pointer-events: none;
+    }
   </style>
 </head>
 <body>
+  <div id="ui"></div>
+
   <script>
     const app = new PIXI.Application();
-    
+    let currentScene = 'start';
+    let player, velocityY = 0, isJumping = false;
+    let platforms = [];
+    let goal;
+    let timer = 0;
+    let gameRunning = false;
+    let keys = {};
+    let uiElement;
+
     async function init() {
       await app.init({
         background: '#0a0a2a',
@@ -23,7 +37,19 @@
       
       document.body.appendChild(app.canvas);
       
-      // Title
+      uiElement = document.getElementById('ui');
+      
+      // Keyboard
+      window.addEventListener('keydown', e => keys[e.key] = true);
+      window.addEventListener('keyup', e => keys[e.key] = false);
+      
+      showStartScreen();
+      app.ticker.add(gameLoop);
+    }
+
+    function showStartScreen() {
+      app.stage.removeChildren();
+      
       const title = new PIXI.Text({
         text: 'RACE PLATFORMER',
         style: { fontSize: 72, fill: 0xffffff, fontWeight: 'bold' }
@@ -42,20 +68,119 @@
       
       app.stage.addChild(title, startText);
       
-      console.log('✅ PixiJS CDN version loaded successfully!');
+      const startHandler = () => {
+        app.stage.removeChildren();
+        startGameLevel();
+      };
       
-      // Click and space handlers
-      app.canvas.addEventListener('pointerdown', () => {
-        alert('🎉 It works! The game is running.');
-      });
-      
+      app.canvas.addEventListener('pointerdown', startHandler, { once: true });
       window.addEventListener('keydown', e => {
-        if (e.code === 'Space') {
-          alert('🎉 It works! The game is running.');
-        }
-      });
+        if (e.code === 'Space') startHandler();
+      }, { once: true });
     }
-    
+
+    function startGameLevel() {
+      gameRunning = true;
+      timer = 0;
+      platforms = [];
+      
+      // Background
+      const bg = new PIXI.Graphics()
+        .rect(0, 0, 3000, app.screen.height)
+        .fill(0x2288ff);
+      app.stage.addChild(bg);
+
+      // Platforms
+      function addPlatform(x, y, w, h) {
+        const p = new PIXI.Graphics().rect(0, 0, w, h).fill(0x00aa00);
+        p.x = x; p.y = y;
+        app.stage.addChild(p);
+        platforms.push(p);
+      }
+      
+      addPlatform(100, 400, 250, 20);
+      addPlatform(450, 300, 180, 20);
+      addPlatform(750, 450, 220, 20);
+      addPlatform(1100, 250, 200, 20);
+      addPlatform(1450, 380, 180, 20);
+      addPlatform(1750, 200, 150, 20);
+      addPlatform(2100, 420, 300, 20);
+
+      // Player
+      player = new PIXI.Graphics()
+        .rect(0, 0, 32, 48)
+        .fill(0xff4444);
+      player.x = 80;
+      player.y = 300;
+      app.stage.addChild(player);
+
+      // Goal
+      goal = new PIXI.Graphics()
+        .rect(0, 0, 30, 120)
+        .fill(0x00ff44);
+      goal.x = 2350;
+      goal.y = 300;
+      app.stage.addChild(goal);
+
+      console.log("✅ Platformer level started!");
+    }
+
+    function gameLoop() {
+      if (!gameRunning || !player) return;
+      
+      timer += 1/60;
+      uiElement.textContent = `Time: ${timer.toFixed(1)}s`;
+
+      const speed = 6;
+      
+      // Horizontal movement
+      if (keys['ArrowLeft'] || keys['a'] || keys['A']) player.x -= speed;
+      if (keys['ArrowRight'] || keys['d'] || keys['D']) player.x += speed;
+
+      // Gravity
+      velocityY += 0.8;
+      player.y += velocityY;
+
+      // Platform collision
+      isJumping = true;
+      for (let p of platforms) {
+        if (
+          player.x < p.x + p.width &&
+          player.x + 32 > p.x &&
+          player.y + 48 > p.y &&
+          player.y + 48 - velocityY <= p.y
+        ) {
+          player.y = p.y - 48;
+          velocityY = 0;
+          isJumping = false;
+        }
+      }
+
+      // Ground
+      if (player.y > 550) {
+        player.y = 550;
+        velocityY = 0;
+        isJumping = false;
+      }
+
+      // Jump
+      if ((keys[' '] || keys['Space']) && !isJumping) {
+        velocityY = -16;
+        isJumping = true;
+      }
+
+      // Camera follow
+      const targetX = -player.x + app.screen.width / 3;
+      app.stage.x = Math.max(Math.min(targetX, 0), -2200);
+
+      // Win condition
+      if (player.x > 2320) {
+        gameRunning = false;
+        alert(`🎉 You Win! Time: ${timer.toFixed(1)} seconds`);
+        showStartScreen();
+      }
+    }
+
     init().catch(console.error);
   </script>
 </body>
