@@ -23,7 +23,7 @@
     let gameRunning = false;
     let keys = {};
     let uiElement;
-    let cameraX = 0; // For smooth camera
+    let cameraX = 0;
 
     async function init() {
       await app.init({
@@ -78,11 +78,9 @@
 
       app.stage.removeChildren();
 
-      // Background
       const bg = new PIXI.Graphics().rect(0, 0, 3000, app.screen.height).fill(0x112244);
       app.stage.addChild(bg);
 
-      // Platforms
       function addPlatform(x, y, w, h) {
         const p = new PIXI.Graphics().rect(0, 0, w, h).fill(0x00bb44);
         p.x = x; p.y = y;
@@ -107,7 +105,6 @@
       player.y = 350;
       app.stage.addChild(player);
 
-      // Goal
       goal = new PIXI.Graphics().rect(0, 0, 30, 120).fill(0x00ff88);
       goal.x = 2550;
       goal.y = 280;
@@ -148,7 +145,7 @@
           player.x < p.x + p.width &&
           player.x + 40 > p.x &&
           player.y + 40 > p.y &&
-          player.y + 40 - velocityY <= p.y
+          player.y + 40 - velocityY <= p.y + 2   // Small tolerance
         ) {
           player.y = p.y - 40;
           velocityY = 0;
@@ -168,12 +165,16 @@
         isOnGround = false;
       }
 
-      // === SMOOTH CAMERA ===
-      const targetCam = -player.x + app.screen.width / 3;
-      cameraX = cameraX * 0.88 + targetCam * 0.12;   // Smooth lerp
-      app.stage.x = Math.max(Math.min(cameraX, 0), -2400);
+      // === ANTI-JITTER: Round player position for rendering ===
+      player.x = Math.round(player.x);
+      player.y = Math.round(player.y);
 
-      // Win condition
+      // Smooth camera
+      const targetCam = -player.x + app.screen.width / 3;
+      cameraX = cameraX * 0.88 + targetCam * 0.12;
+      app.stage.x = Math.round(Math.max(Math.min(cameraX, 0), -2400));
+
+      // Win
       if (player.x > 2520) {
         gameRunning = false;
         alert(`🎉 Level Complete!\nTime: ${timer.toFixed(1)} seconds`);
