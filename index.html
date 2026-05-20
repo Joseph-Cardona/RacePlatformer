@@ -24,6 +24,8 @@
     let keys = {};
     let uiElement;
     let cameraX = 0;
+    const startX = 80;
+    const startY = 350;
 
     async function init() {
       await app.init({
@@ -88,13 +90,23 @@
       player.roundRect(0, 0, 40, 40, 8);
       player.fill(0x111111);
       player.stroke({ width: 4, color: 0x222222 });
-      player.x = 80;
-      player.y = 350;
+      player.x = startX;
+      player.y = startY;
       app.stage.addChild(player);
 
       goal = new PIXI.Graphics().rect(0, 0, 30, 120).fill(0x00ff88);
       goal.x = 2550; goal.y = 280;
       app.stage.addChild(goal);
+    }
+
+    function die() {
+      alert("💀 You fell off the level!");
+      // Respawn at start
+      player.x = startX;
+      player.y = startY;
+      velocityX = 0;
+      velocityY = 0;
+      cameraX = 0;
     }
 
     function gameLoop() {
@@ -108,10 +120,10 @@
       const FRICTION = 0.78;
       const AIR_FRICTION = 0.94;
       const JUMP_FORCE = -19.5;
-      const GRAVITY = 1.25;           // Stronger base gravity
-      const TERMINAL_VELOCITY = 22;   // Max falling speed
+      const GRAVITY = 1.25;
+      const TERMINAL_VELOCITY = 22;
 
-      // Horizontal movement
+      // Horizontal
       let targetSpeed = 0;
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetSpeed = -MOVE_SPEED;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) targetSpeed = MOVE_SPEED;
@@ -120,27 +132,42 @@
       velocityX *= (isOnGround ? FRICTION : AIR_FRICTION);
       player.x += velocityX;
 
-      // === FALLING ACCELERATION ===
+      // Horizontal collisions
+      for (let p of platforms) {
+        if (player.x + 40 > p.x && player.x < p.x + p.width &&
+            player.y + 40 > p.y && player.y < p.y + p.height) {
+          if (velocityX > 0) player.x = p.x - 40;
+          if (velocityX < 0) player.x = p.x + p.width;
+          velocityX = 0;
+        }
+      }
+
+      // Vertical
       velocityY += GRAVITY;
       if (velocityY > TERMINAL_VELOCITY) velocityY = TERMINAL_VELOCITY;
-
       player.y += velocityY;
 
-      // Collision
+      // Vertical collisions
       isOnGround = false;
       for (let p of platforms) {
         if (player.x + 40 > p.x && player.x < p.x + p.width &&
             player.y + 40 > p.y && player.y < p.y + p.height) {
 
-          if (velocityY > 0) { // Falling
+          if (velocityY > 0) {
             player.y = p.y - 40;
             velocityY = 0;
             isOnGround = true;
-          } else if (velocityY < 0) { // Head bump
+          } else if (velocityY < 0) {
             player.y = p.y + p.height;
             velocityY = 0;
           }
         }
+      }
+
+      // Fall death
+      if (player.y > 650) {
+        die();
+        return;
       }
 
       // Ground
