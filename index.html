@@ -16,7 +16,6 @@
 
   <script>
     const app = new PIXI.Application();
-    let currentScene = 'start';
     let player, velocityX = 0, velocityY = 0, isOnGround = false;
     let platforms = [];
     let goal;
@@ -24,7 +23,6 @@
     let gameRunning = false;
     let keys = {};
     let uiElement;
-    let lastGroundTime = 0; // for coyote time
 
     async function init() {
       await app.init({
@@ -45,12 +43,18 @@
 
     function showStartScreen() {
       app.stage.removeChildren();
-      const title = new PIXI.Text({ text: 'RACE PLATFORMER', style: { fontSize: 72, fill: 0xffffff, fontWeight: 'bold' }});
+      const title = new PIXI.Text({ 
+        text: 'RACE PLATFORMER', 
+        style: { fontSize: 72, fill: 0xffffff, fontWeight: 'bold' }
+      });
       title.anchor.set(0.5);
       title.x = app.screen.width / 2;
       title.y = app.screen.height / 3;
       
-      const startText = new PIXI.Text({ text: 'CLICK OR PRESS SPACE TO START', style: { fontSize: 36, fill: 0x00ffff }});
+      const startText = new PIXI.Text({ 
+        text: 'CLICK OR PRESS SPACE TO START', 
+        style: { fontSize: 36, fill: 0x00ffff }
+      });
       startText.anchor.set(0.5);
       startText.x = app.screen.width / 2;
       startText.y = app.screen.height / 2;
@@ -59,14 +63,16 @@
 
       const startHandler = () => startGameLevel();
       app.canvas.addEventListener('pointerdown', startHandler, { once: true });
-      window.addEventListener('keydown', e => { if (e.code === 'Space') startHandler(); }, { once: true });
+      window.addEventListener('keydown', e => { 
+        if (e.code === 'Space') startHandler(); 
+      }, { once: true });
     }
 
     function startGameLevel() {
       gameRunning = true;
       timer = 0;
-      platforms = [];
       velocityX = velocityY = 0;
+      platforms = [];
 
       app.stage.removeChildren();
 
@@ -109,21 +115,19 @@
       timer += 1/60;
       uiElement.textContent = `Time: ${timer.toFixed(1)}s`;
 
-      const GRAVITY = 1.1;
-      const MOVE_SPEED = 9;
-      const ACCEL = 1.8;
-      const FRICTION = 0.82;
-      const AIR_FRICTION = 0.95;
-      const JUMP_FORCE = -18;
+      const GRAVITY = 1.15;
+      const MOVE_SPEED = 9.2;
+      const ACCEL = 1.9;
+      const FRICTION = 0.78;
+      const AIR_FRICTION = 0.94;
+      const JUMP_FORCE = -21.5;        // ← Higher jump
 
-      // Horizontal movement (Super Meat Boy style)
+      // Horizontal movement
       let targetSpeed = 0;
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetSpeed = -MOVE_SPEED;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) targetSpeed = MOVE_SPEED;
 
       velocityX += (targetSpeed - velocityX) * ACCEL;
-      
-      // Apply friction
       velocityX *= (isOnGround ? FRICTION : AIR_FRICTION);
 
       player.x += velocityX;
@@ -147,24 +151,24 @@
         }
       }
 
-      // Ground check
+      // Ground
       if (player.y > 550) {
         player.y = 550;
         velocityY = 0;
         isOnGround = true;
       }
 
-      // Jump (variable height)
-      if ((keys[' '] || keys['Space']) && isOnGround) {
+      // Jump - Support Space, Up Arrow, and W
+      if ((keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) && isOnGround) {
         velocityY = JUMP_FORCE;
         isOnGround = false;
       }
 
-      // Camera
+      // Camera follow
       const targetCam = -player.x + app.screen.width / 3;
       app.stage.x = Math.max(Math.min(targetCam, 0), -2400);
 
-      // Win
+      // Win condition
       if (player.x > 2520) {
         gameRunning = false;
         alert(`🎉 Level Complete!\nTime: ${timer.toFixed(1)} seconds`);
