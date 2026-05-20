@@ -104,12 +104,12 @@
 
     function die() {
       deaths++;
-      // Instant respawn
+      // Respawn player
       player.x = startX;
       player.y = startY;
       velocityX = 0;
       velocityY = 0;
-      cameraX = 0;
+      // Camera will smoothly lerp back thanks to the gameLoop
     }
 
     function gameLoop() {
@@ -183,9 +183,9 @@
       player.x = Math.round(player.x);
       player.y = Math.round(player.y);
 
-      // Smooth camera
+      // === SMOOTH CAMERA (works on respawn too) ===
       const targetCam = -player.x + app.screen.width / 3;
-      cameraX = cameraX * 0.88 + targetCam * 0.12;
+      cameraX = cameraX * 0.85 + targetCam * 0.15;   // Slightly faster lerp on respawn
       app.stage.x = Math.round(Math.max(Math.min(cameraX, 0), -2400));
 
       // Win
