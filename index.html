@@ -103,12 +103,13 @@
       timer += 1/60;
       uiElement.textContent = `Time: ${timer.toFixed(1)}s`;
 
-      const GRAVITY = 1.15;
       const MOVE_SPEED = 11.5;
       const ACCEL = 2.0;
       const FRICTION = 0.78;
       const AIR_FRICTION = 0.94;
       const JUMP_FORCE = -19.5;
+      const GRAVITY = 1.25;           // Stronger base gravity
+      const TERMINAL_VELOCITY = 22;   // Max falling speed
 
       // Horizontal movement
       let targetSpeed = 0;
@@ -117,24 +118,15 @@
 
       velocityX += (targetSpeed - velocityX) * ACCEL;
       velocityX *= (isOnGround ? FRICTION : AIR_FRICTION);
-
       player.x += velocityX;
 
-      // Resolve horizontal collisions
-      for (let p of platforms) {
-        if (player.x + 40 > p.x && player.x < p.x + p.width &&
-            player.y + 40 > p.y && player.y < p.y + p.height) {
-          if (velocityX > 0) player.x = p.x - 40;
-          if (velocityX < 0) player.x = p.x + p.width;
-          velocityX = 0;
-        }
-      }
-
-      // Vertical movement
+      // === FALLING ACCELERATION ===
       velocityY += GRAVITY;
+      if (velocityY > TERMINAL_VELOCITY) velocityY = TERMINAL_VELOCITY;
+
       player.y += velocityY;
 
-      // Resolve vertical collisions
+      // Collision
       isOnGround = false;
       for (let p of platforms) {
         if (player.x + 40 > p.x && player.x < p.x + p.width &&
@@ -144,7 +136,7 @@
             player.y = p.y - 40;
             velocityY = 0;
             isOnGround = true;
-          } else if (velocityY < 0) { // Jumping into ceiling
+          } else if (velocityY < 0) { // Head bump
             player.y = p.y + p.height;
             velocityY = 0;
           }
