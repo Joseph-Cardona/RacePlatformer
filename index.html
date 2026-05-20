@@ -4,21 +4,59 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Race Platformer</title>
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.5.0/dist/pixi.min.js"></script>
   <style>
-    body { margin: 0; background: #000; overflow: hidden; font-family: Arial, sans-serif; }
-    canvas { display: block; }
-    #ui {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      z-index: 100;
-      pointer-events: none;
-      font-family: monospace;
-    }
+    body { margin:0; background:#000; overflow:hidden; }
+    canvas { display:block; }
   </style>
 </head>
 <body>
-  <div id="ui"></div>
+  <script>
+    const app = new PIXI.Application();
+    
+    async function init() {
+      await app.init({
+        background: '#0a0a2a',
+        resizeTo: window,
+        antialias: true
+      });
+      
+      document.body.appendChild(app.canvas);
+      
+      // Title
+      const title = new PIXI.Text({
+        text: 'RACE PLATFORMER',
+        style: { fontSize: 72, fill: 0xffffff, fontWeight: 'bold' }
+      });
+      title.anchor.set(0.5);
+      title.x = app.screen.width / 2;
+      title.y = app.screen.height / 3;
+      
+      const startText = new PIXI.Text({
+        text: 'CLICK OR PRESS SPACE TO START',
+        style: { fontSize: 36, fill: 0x00ffff }
+      });
+      startText.anchor.set(0.5);
+      startText.x = app.screen.width / 2;
+      startText.y = app.screen.height / 2;
+      
+      app.stage.addChild(title, startText);
+      
+      console.log('✅ PixiJS CDN version loaded successfully!');
+      
+      // Click and space handlers
+      app.canvas.addEventListener('pointerdown', () => {
+        alert('🎉 It works! The game is running.');
+      });
+      
+      window.addEventListener('keydown', e => {
+        if (e.code === 'Space') {
+          alert('🎉 It works! The game is running.');
+        }
+      });
+    }
+    
+    init().catch(console.error);
+  </script>
 </body>
 </html>
