@@ -27,16 +27,58 @@
     let deaths = 0;
     let isJumping = false;
 
-    const startX = 80;
-    const startY = 400;
+    const TILE_SIZE = 60;
+
+    const levels = [
+      {
+        name: "Level 1 - Basics",
+        data: [
+          "........................",
+          "........................",
+          "........................",
+          "S.......................",
+          "PP......................",
+          ".....PP.................",
+          "........................",
+          "..............PP........",
+          "......................G.",
+          "........................",
+        ]
+      },
+      {
+        name: "Level 2 - Rising",
+        data: [
+          "........................",
+          "........................",
+          ".......PP...............",
+          "S.......................",
+          "PP......................",
+          "..........PP............",
+          "..............PP........",
+          "........................",
+          "....................G...",
+          "........................",
+        ]
+      },
+      {
+        name: "Level 3 - Challenge",
+        data: [
+          "........................",
+          "...........PP...........",
+          "......PP................",
+          "S.......................",
+          "PP......................",
+          "..........PP............",
+          "....PP..................",
+          "..................PP....",
+          "..PP..................G.",
+          "........................",
+        ]
+      }
+    ];
 
     async function init() {
-      await app.init({
-        background: '#0a0a2a',
-        resizeTo: window,
-        antialias: true
-      });
-      
+      await app.init({ background: '#0a0a2a', resizeTo: window, antialias: true });
       document.body.appendChild(app.canvas);
       uiElement = document.getElementById('ui');
       
@@ -57,12 +99,18 @@
       
       app.stage.addChild(title, startText);
 
-      const startHandler = () => startGameLevel();
+      const startHandler = () => startRandomLevel();
       app.canvas.addEventListener('pointerdown', startHandler, { once: true });
       window.addEventListener('keydown', e => { if (e.code === 'Space') startHandler(); }, { once: true });
     }
 
-    function startGameLevel() {
+    function startRandomLevel() {
+      const randomIndex = Math.floor(Math.random() * levels.length);
+      loadLevel(randomIndex);
+    }
+
+    function loadLevel(levelIndex) {
+      const level = levels[levelIndex];
       gameRunning = true;
       timer = 0;
       deaths = 0;
@@ -73,49 +121,63 @@
 
       app.stage.removeChildren();
 
-      const bg = new PIXI.Graphics().rect(0, 0, 3200, app.screen.height).fill(0x112244);
+      const bg = new PIXI.Graphics().rect(0, 0, 4000, app.screen.height).fill(0x112244);
       app.stage.addChild(bg);
 
-      function addPlatform(x, y, w, h) {
-        const p = new PIXI.Graphics().rect(0, 0, w, h).fill(0x00bb44);
+      let spawnX = 120;
+      let spawnY = 300;
+      let goalX = 2900;
+      let goalY = 300;
+
+      function addPlatform(x, y) {
+        const p = new PIXI.Graphics().rect(0, 0, TILE_SIZE, TILE_SIZE).fill(0x00bb44);
         p.x = x; p.y = y;
         app.stage.addChild(p);
         platforms.push(p);
       }
 
-      // === NEW IMPROVED LEVEL ===
-      addPlatform(100, 450, 280, 20);   // Start
-      addPlatform(450, 380, 180, 20);
-      addPlatform(700, 280, 150, 20);
-      addPlatform(950, 420, 200, 20);
-      addPlatform(1250, 220, 160, 20);  // Higher jump
-      addPlatform(1500, 380, 180, 20);
-      addPlatform(1750, 180, 140, 20);  // Big gap + high jump
-      addPlatform(2000, 320, 220, 20);
-      addPlatform(2300, 250, 150, 20);
-      addPlatform(2550, 380, 180, 20);
-      addPlatform(2800, 300, 250, 20);  // Final stretch
+      // Build square tilemap
+      for (let row = 0; row < level.data.length; row++) {
+        for (let col = 0; col < level.data[row].length; col++) {
+          const tile = level.data[row][col];
+          const x = col * TILE_SIZE + 80;
+          const y = row * TILE_SIZE + 120;
 
+          if (tile === 'P') {
+            addPlatform(x, y);
+          } else if (tile === 'S') {
+            spawnX = x + 10;
+            spawnY = y - TILE_SIZE - 5;
+          } else if (tile === 'G') {
+            goalX = x + 10;
+            goalY = y;
+          }
+        }
+      }
+
+      // Player
       player = new PIXI.Graphics();
       player.roundRect(0, 0, 40, 40, 8);
       player.fill(0x111111);
       player.stroke({ width: 4, color: 0x222222 });
-      player.x = startX;
-      player.y = startY;
+      player.x = spawnX;
+      player.y = spawnY;
       app.stage.addChild(player);
 
+      // Goal
       goal = new PIXI.Graphics().rect(0, 0, 40, 140).fill(0x00ff88);
-      goal.x = 2950;
-      goal.y = 200;
+      goal.x = goalX;
+      goal.y = goalY;
       app.stage.addChild(goal);
+
+      console.log(`Loaded ${level.name}`);
     }
 
     function die() {
       deaths++;
-      player.x = startX;
-      player.y = startY;
-      velocityX = 0;
-      velocityY = 0;
+      player.x = 120;
+      player.y = 300;
+      velocityX = velocityY = 0;
       isJumping = false;
       cameraX = 0;
     }
@@ -135,7 +197,6 @@
       const TERMINAL_VELOCITY = 22;
       const JUMP_CUT = 0.55;
 
-      // Horizontal
       let targetSpeed = 0;
       if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetSpeed = -MOVE_SPEED;
       if (keys['ArrowRight'] || keys['d'] || keys['D']) targetSpeed = MOVE_SPEED;
@@ -144,7 +205,6 @@
       velocityX *= (isOnGround ? FRICTION : AIR_FRICTION);
       player.x += velocityX;
 
-      // Horizontal collisions
       for (let p of platforms) {
         if (player.x + 40 > p.x && player.x < p.x + p.width &&
             player.y + 40 > p.y && player.y < p.y + p.height) {
@@ -154,17 +214,14 @@
         }
       }
 
-      // Vertical
       velocityY += GRAVITY;
       if (velocityY > TERMINAL_VELOCITY) velocityY = TERMINAL_VELOCITY;
       player.y += velocityY;
 
-      // Variable jump cut
       if (!keys[' '] && !keys['ArrowUp'] && !keys['w'] && !keys['W'] && velocityY < 0) {
         velocityY *= JUMP_CUT;
       }
 
-      // Vertical collisions
       isOnGround = false;
       for (let p of platforms) {
         if (player.x + 40 > p.x && player.x < p.x + p.width &&
@@ -174,7 +231,6 @@
             player.y = p.y - 40;
             velocityY = 0;
             isOnGround = true;
-            isJumping = false;
           } else if (velocityY < 0) {
             player.y = p.y + p.height;
             velocityY = 0;
@@ -182,16 +238,11 @@
         }
       }
 
-      if (player.y > 650) {
-        die();
-        return;
-      }
+      if (player.y > 650) die();
 
-      // Jump
       if ((keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) && isOnGround) {
         velocityY = JUMP_FORCE;
         isOnGround = false;
-        isJumping = true;
       }
 
       player.x = Math.round(player.x);
@@ -199,12 +250,10 @@
 
       const targetCam = -player.x + app.screen.width / 3;
       cameraX = cameraX * 0.85 + targetCam * 0.15;
-      app.stage.x = Math.round(Math.max(Math.min(cameraX, 0), -2800));
+      app.stage.x = Math.round(Math.max(Math.min(cameraX, 0), -3200));
 
-      // Win
-      if (player.x > 2920) {
-        gameRunning = false;
-        alert(`🎉 Level Complete!\nTime: ${timer.toFixed(1)} seconds\nDeaths: ${deaths}`);
+      if (player.x > goal.x - 30) {
+        alert(`🎉 Level Complete!\nTime: ${timer.toFixed(1)}s | Deaths: ${deaths}`);
         showStartScreen();
       }
     }
