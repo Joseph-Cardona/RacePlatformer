@@ -14,6 +14,7 @@ const keys: Record<string, boolean> = {};
 let uiElement: HTMLElement | null;
 let cameraX = 0;
 let deaths = 0;
+let hasFinished = false; // prevent duplicate win messages
 
 // Multiplayer state
 let multiplayerRoom: any = null;
@@ -165,6 +166,22 @@ async function connectMultiplayer() {
     multiplayerRoom = await client.joinOrCreate('game', {}, GameRoomState);
     isMultiplayerConnected = true;
 
+    // Listen for player winning
+    multiplayerRoom.onMessage('player_won', (data: { winnerId: string; winnerColor: number }) => {
+      const isWinner = data.winnerId === multiplayerRoom.sessionId;
+      if (isWinner) {
+        showLevelComplete('🎉 YOU WON!', data.winnerColor);
+      } else {
+        const colorName = colorToName(data.winnerColor);
+        showLevelComplete(`${colorName} WON!`, data.winnerColor);
+      }
+    });
+
+    // Listen for opponent joining the room
+    multiplayerRoom.onMessage('opponent_joined', () => {
+      console.log('👤 Opponent joined the room!');
+    });
+
     // Listen for game start from server
     multiplayerRoom.onMessage('game_start', (data: { levelIndex: number }) => {
       // Clean up waiting screen ticker if active
@@ -192,8 +209,12 @@ async function connectMultiplayer() {
       const sprite = createGhostSprite(mp.color, `P${playerIndex}`);
       sprite.x = mp.x;
       sprite.y = mp.y;
-      app.stage.addChild(sprite);
       otherPlayers.set(sessionId, sprite);
+
+      // Only show ghost sprites when we're in a level
+      if (gameRunning) {
+        app.stage.addChild(sprite);
+      }
 
       mp.onChange(() => {
         const s = otherPlayers.get(sessionId);
@@ -309,9 +330,9 @@ function showWaitingScreen() {
     .fill({ color: 0x0a0a2a });
   app.stage.addChild(bg);
 
-  // Searching text
+  // Waiting text
   const searchText = new Text({
-    text: 'SEARCHING FOR OPPONENT',
+    text: 'WAITING FOR OPPONENT',
     style: {
       fontSize: 48,
       fill: 0x00ffff,
@@ -479,10 +500,19 @@ function loadLevel(levelIndex: number) {
     });
   }
 
+  hasFinished = false;
   console.log(`Loaded ${level.name}`);
 }
 
-function showLevelComplete() {
+function colorToName(color: number): string {
+  const names: Record<number, string> = {
+    0xff4444: 'Red', 0x44ff44: 'Green', 0x4444ff: 'Blue', 0xffff44: 'Yellow',
+    0xff44ff: 'Magenta', 0x44ffff: 'Cyan', 0xff8844: 'Orange', 0x88ff44: 'Lime',
+  };
+  return names[color] || 'Unknown';
+}
+
+function showLevelComplete(bannerText: string, bannerColor?: number) {
   gameRunning = false;
   app.stage.x = 0;
   let dismissed = false;
@@ -494,9 +524,9 @@ function showLevelComplete() {
   overlay.addChild(bg);
 
   const title = new Text({
-    text: 'LEVEL COMPLETE',
+    text: bannerText,
     style: {
-      fontSize: 64, fill: 0xffd700, fontWeight: 'bold', fontFamily: 'monospace',
+      fontSize: 64, fill: bannerColor || 0xffd700, fontWeight: 'bold', fontFamily: 'monospace',
       dropShadow: { color: 0xff8c00, blur: 16, distance: 4, angle: Math.PI / 2 },
     }
   });
@@ -666,9 +696,14 @@ function gameLoop() {
   sendPosition();
 
   // Goal collision check
-  if (goal && player.x + 40 > goal.x && player.x < goal.x + goal.width &&
+  if (!hasFinished && goal && player.x + 40 > goal.x && player.x < goal.x + goal.width &&
       player.y + 40 >= goal.y && player.y < goal.y + goal.height) {
-    showLevelComplete();
+    hasFinished = true;
+    if (multiplayerRoom) {
+      multiplayerRoom.send('win');
+    } else {
+      showLevelComplete('LEVEL COMPLETE');
+    }
   }
 }
 
