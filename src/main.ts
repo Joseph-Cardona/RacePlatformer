@@ -5,7 +5,7 @@ import { GameRoomState } from './schema';
 
 const app = new Application();
 let player: Graphics | null = null;
-let velocityX = 0, velocityY = 0, isOnGround = false;
+let velocityX = 0, velocityY = 0, isOnGround = false, isOnWall = false, wallDirection = 0, wallJumpCooldown = 0, fallTime = 0, wallSlideTime = 0;
 let platforms: Graphics[] = [];
 let goal: Graphics | null = null;
 let timer = 0;
@@ -27,48 +27,48 @@ const TILE_SIZE = 60;
 
 const levels = [
   {
-    name: "Level 1 - Basics",
+    name: "World 1-1",
     data: [
-      "........................",
-      "........................",
-      "........................",
-      "S.......................",
-      "PP......................",
-      ".....PP............G....",
-      ".........P........PPP...",
-      "..............PP........",
-      "........................",
-      "........................",
+      "........................",  //  0 sky
+      "........................",  //  1 sky
+      ".........PPP............",  //  2 floating ? blocks
+      "S........PPP........PPG.",  //  3 spawn + floating blocks + stair top + goal
+      "PP...PP.........PP..PPPP",  //  4 ground + pipe1 + gap + pipe2 + staircase top
+      "PP...PP.........PP...PPP",  //  5 ground + pipes + stair step 3
+      "PP...PP.........PP....PP",  //  6 ground + pipes + stair step 2
+      "PP...PP................P",  //  7 ground + pipe1 base + stair step 1
+      "PP......................",  //  8 ground stretch
+      "........................",  //  9 sky
     ]
   },
   {
-    name: "Level 2 - Rising",
+    name: "World 1-2",
     data: [
-      "........................",
-      "........................",
-      "........................",
-      "S...P..................",
-      "PP......................",
-      "..........PP...G........",
-      "..............PP........",
-      "........................",
-      "........................",
-      "........................",
+      "........................",  //  0 sky
+      "........................",  //  1 sky
+      "....PPP...PPP...PPP.....",  //  2 ceiling blocks (low ceiling!)
+      "S......PP......PP...PP..",  //  3 spawn + pipe tops
+      "PP.....PP..PP..PP...PP..",  //  4 ground + 3 pipes
+      "PP.....PP..PP..PP...PP..",  //  5 pipe shafts
+      "PP.....PP..PP..PP...PP..",  //  6 pipe shafts
+      "PP.....PP..PP......PPP..",  //  7 ground + pipe bases + extra
+      "PP..............PPPPPPG.",  //  8 final ground + goal
+      "........................",  //  9 sky
     ]
   },
   {
-    name: "Level 3 - Challenge",
+    name: "World 1-3",
     data: [
-      "........................",
-      "...........PP...........",
-      "......PP................",
-      "S.......................",
-      "PP......................",
-      "..........PP............",
-      "....PP.............G....",
-      "..................PP....",
-      "..PP....................",
-      "........................",
+      "........................",  //  0 sky
+      "....PP........PP........",  //  1 high floating islands
+      "........................",  //  2
+      "S...P..P.....P..P...PP..",  //  3 spawn + floating platforms
+      "P...P..PP....P..PP..PP..",  //  4 platforms + wider blocks
+      "....P........P.......P..",  //  5 mid platforms
+      ".....P...PP..P......PP..",  //  6 staggered platforms
+      "......P......PP.....PP..",  //  7 descending path
+      ".......PPP......PPPPPPG.",  //  8 ground + goal (no gap!)
+      "........................",  //  9 sky
     ]
   }
 ];
@@ -423,6 +423,11 @@ function loadLevel(levelIndex: number) {
   timer = 0;
   deaths = 0;
   velocityX = velocityY = 0;
+  isOnWall = false;
+  wallDirection = 0;
+  wallJumpCooldown = 0;
+  fallTime = 0;
+  wallSlideTime = 0;
   cameraX = 0;
   platforms = [];
 
@@ -614,6 +619,11 @@ function die() {
     player.y = 300;
   }
   velocityX = velocityY = 0;
+  isOnWall = false;
+  wallDirection = 0;
+  wallJumpCooldown = 0;
+  fallTime = 0;
+  wallSlideTime = 0;
   cameraX = 0;
 }
 
@@ -634,7 +644,14 @@ function gameLoop() {
   const FRICTION = 0.78;
   const AIR_FRICTION = 0.94;
   const JUMP_FORCE = -19.5;
-  const GRAVITY = 1.25;
+  const WALL_JUMP_H = 4;
+  const WALL_JUMP_V = -30;
+  const WALL_SLIDE_BASE = 2;
+  const WALL_SLIDE_RAMP = 0.05;
+  const WALL_SLIDE_MAX = 5;
+  const WALL_JUMP_COOLDOWN = 10;
+  const GRAVITY_BASE = 1.0;
+  const GRAVITY_RAMP = 0.05;
   const TERMINAL_VELOCITY = 22;
   const JUMP_CUT = 0.55;
 
@@ -642,20 +659,36 @@ function gameLoop() {
   if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetSpeed = -MOVE_SPEED;
   if (keys['ArrowRight'] || keys['d'] || keys['D']) targetSpeed = MOVE_SPEED;
 
-  velocityX += (targetSpeed - velocityX) * ACCEL;
+  isOnWall = false;
+  wallDirection = 0;
+  if (wallJumpCooldown > 0) wallJumpCooldown--;
+
+  // Skip input acceleration during wall jump cooldown so the launch velocity actually plays out
+  if (wallJumpCooldown <= 0) {
+    velocityX += (targetSpeed - velocityX) * ACCEL;
+  }
   velocityX *= (isOnGround ? FRICTION : AIR_FRICTION);
   player.x += velocityX;
 
   for (const p of platforms) {
     if (player.x + 40 > p.x && player.x < p.x + p.width &&
         player.y + 40 > p.y && player.y < p.y + p.height) {
-      if (velocityX > 0) player.x = p.x - 40;
-      if (velocityX < 0) player.x = p.x + p.width;
+      if (velocityX > 0) {
+        player.x = p.x - 40;
+        isOnWall = true;
+        wallDirection = 1;
+      }
+      if (velocityX < 0) {
+        player.x = p.x + p.width;
+        isOnWall = true;
+        wallDirection = -1;
+      }
       velocityX = 0;
     }
   }
 
-  velocityY += GRAVITY;
+  const currentGravity = GRAVITY_BASE + fallTime * GRAVITY_RAMP;
+  velocityY += currentGravity;
   if (velocityY > TERMINAL_VELOCITY) velocityY = TERMINAL_VELOCITY;
   player.y += velocityY;
 
@@ -671,16 +704,34 @@ function gameLoop() {
         player.y = p.y - 40;
         velocityY = 0;
         isOnGround = true;
+        fallTime = 0;
       } else if (velocityY < 0) {
         player.y = p.y + p.height;
         velocityY = 0;
       }
     }
   }
+  if (!isOnGround) fallTime = Math.min(fallTime + 1, 600);
+
+  // Wall slide: ramps up the longer you stick to a wall
+  if (isOnWall && !isOnGround) {
+    wallSlideTime = Math.min(wallSlideTime + 1, 600);
+    const currentSlideMax = Math.min(WALL_SLIDE_BASE + wallSlideTime * WALL_SLIDE_RAMP, WALL_SLIDE_MAX);
+    if (velocityY > currentSlideMax) velocityY = currentSlideMax;
+  } else {
+    wallSlideTime = 0;
+  }
 
   if (player.y > 650) die();
 
-  if ((keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) && isOnGround) {
+  // Wall jump: press jump while sliding on a wall
+  if ((keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) && isOnWall && !isOnGround && wallJumpCooldown <= 0) {
+    velocityY = WALL_JUMP_V;
+    velocityX = wallDirection * -WALL_JUMP_H;
+    isOnWall = false;
+    wallSlideTime = 0;
+    wallJumpCooldown = WALL_JUMP_COOLDOWN;
+  } else if ((keys[' '] || keys['ArrowUp'] || keys['w'] || keys['W']) && isOnGround) {
     velocityY = JUMP_FORCE;
     isOnGround = false;
   }
